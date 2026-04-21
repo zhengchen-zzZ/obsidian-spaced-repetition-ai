@@ -53,38 +53,54 @@ export default class AIManager {
   private client: OpenAI;
   private messageHistory: Message[];
   public chatModel: ChatModels;
+  private baseURL: string;
+  private customModelId: string;
 
-  constructor(chatModel: ChatModels, apiKey: string) {
+  constructor(chatModel: ChatModels, apiKey: string, baseURL?: string, customModelId?: string) {
     this.chatModel = chatModel;
+    this.baseURL = baseURL || "";
+    this.customModelId = customModelId || "";
     this.messageHistory = [];
     this.setNewThread();
     this.checkApiKey(apiKey)
       .then((valid) => {
         if (valid) {
-          this.client = new OpenAI({
-            apiKey,
-            dangerouslyAllowBrowser: true
-          });
+          this.client = this.createClient(apiKey);
         }
       });
   }
 
+  private createClient(apiKey: string): OpenAI {
+    const options: { apiKey: string; dangerouslyAllowBrowser: boolean; baseURL?: string } = {
+      apiKey,
+      dangerouslyAllowBrowser: true
+    };
+    if (this.baseURL) {
+      options.baseURL = this.baseURL;
+    }
+    return new OpenAI(options);
+  }
+
+  private getEffectiveModel(): string {
+    if (this.chatModel === ChatModels.CUSTOM && this.customModelId) {
+      return this.customModelId;
+    }
+    return this.chatModel;
+  }
+
   // Gets singleton instance
-  static getInstance(chatModel: ChatModels, apiKey: string): AIManager {
+  static getInstance(chatModel: ChatModels, apiKey: string, baseURL?: string, customModelId?: string): AIManager {
     if (!AIManager.instance) {
-      AIManager.instance = new AIManager(chatModel, apiKey);
+      AIManager.instance = new AIManager(chatModel, apiKey, baseURL, customModelId);
     }
     return AIManager.instance;
   }
 
   async checkApiKey(apiKey: string): Promise<boolean> {
-    const tempClient = new OpenAI({
-      apiKey,
-      dangerouslyAllowBrowser: true
-    });
+    const tempClient = this.createClient(apiKey);
     const response = await tempClient.chat.completions.create({
       messages: [{ role: 'user', content: 'this is a test' }],
-      model: this.chatModel,
+      model: this.getEffectiveModel(),
     });
     return !!response.choices[0].message.content;
   }
@@ -92,10 +108,7 @@ export default class AIManager {
   async setApiKey(apiKey: string): Promise<boolean> {
     const valid = await this.checkApiKey(apiKey);
     if (valid) {
-      this.client = new OpenAI({
-        apiKey,
-        dangerouslyAllowBrowser: true
-      });
+      this.client = this.createClient(apiKey);
       return true;
     }
     return false;
@@ -104,6 +117,14 @@ export default class AIManager {
   // Sets the chat model
   setModel(newModel: ChatModels): void {
     this.chatModel = newModel;
+  }
+
+  setBaseURL(url: string): void {
+    this.baseURL = url;
+  }
+
+  setCustomModelId(id: string): void {
+    this.customModelId = id;
   }
 
   // Sets a new conversation thread with optional index to slice message history
@@ -151,7 +172,7 @@ export default class AIManager {
       // Push user message into messageHistory
       this.messageHistory.push({ role: 'user' as const, content: newMessageModded });
       const stream = await this.client.chat.completions.create({
-        model: this.chatModel,
+        model: this.getEffectiveModel(),
         messages: this.messageHistory as ChatCompletionMessageParam[],
         stream: true,
       });

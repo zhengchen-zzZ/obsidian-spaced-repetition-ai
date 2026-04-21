@@ -53,6 +53,30 @@ export class SRSettingTab extends PluginSettingTab {
       )
 
     new Setting(containerEl)
+      .setName('OpenAI-compatible Base URL')
+      .setDesc('Override the default OpenAI API endpoint. Leave empty for official OpenAI. Examples: http://localhost:11434/v1 (Ollama), http://localhost:1234/v1 (LM Studio)')
+      .addText(text => text
+        .setPlaceholder('https://api.openai.com/v1')
+        .setValue(this.plugin.settings.openAIBaseURL || '')
+        .onChange(async (value) => {
+          this.plugin.settings.openAIBaseURL = value;
+          await this.plugin.saveSettings({ baseURL: true });
+        })
+      )
+
+    new Setting(containerEl)
+      .setName('Custom model ID')
+      .setDesc('When "Custom (OpenAI-Compatible)" is selected as the model, this ID will be used. Examples: llama3.2, qwen2.5, deepseek-chat')
+      .addText(text => text
+        .setPlaceholder('e.g. llama3.2')
+        .setValue(this.plugin.settings.customModelId || '')
+        .onChange(async (value) => {
+          this.plugin.settings.customModelId = value;
+          await this.plugin.saveSettings({ customModelId: true });
+        })
+      )
+
+    new Setting(containerEl)
       .setName('Default model')
       .setDesc(`When you open a new chat, this AI model is used by default`)
       .addDropdown(dropdown => dropdown
@@ -76,7 +100,5 @@ export class SRSettingTab extends PluginSettingTab {
       )
 
 
-        
   }
 }
-

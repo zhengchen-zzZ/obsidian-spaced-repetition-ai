@@ -18,16 +18,21 @@ export default class SRPlugin extends Plugin {
 	subviewType: SubviewType;
 
 	async onload(): Promise<void> {
-		
+
 		await this.loadSettings();
 
 		this.subviewType = SubviewType.REVIEW; // Update this to change default view
 		this.memoryManager = new MemoryManager(this.app.vault)
 		this.deckManager = new DeckManager(this.memoryManager, this.app.vault, this.settings)
-		
+
 		const key = this.settings.openAIApiKey;
 		const decryptedKey = EncryptionService.getDecryptedKey(key);
-		this.aiManager = AIManager.getInstance(this.settings.defaultModel, decryptedKey);
+		this.aiManager = AIManager.getInstance(
+			this.settings.defaultModel,
+			decryptedKey,
+			this.settings.openAIBaseURL,
+			this.settings.customModelId,
+		);
 
 		this.addSettingTab(new SRSettingTab(this.app, this));
 
@@ -68,7 +73,9 @@ export default class SRPlugin extends Plugin {
 
 	async saveSettings(changed: {
 		apiKey?: boolean,
-		defaultModel?: boolean
+		defaultModel?: boolean,
+		baseURL?: boolean,
+		customModelId?: boolean,
 	} = {}): Promise<void> {
 		try {
 			if (changed) {
@@ -85,6 +92,12 @@ export default class SRPlugin extends Plugin {
 				}
 				if (changed.defaultModel) {
 					this.aiManager.setModel(this.settings.defaultModel);
+				}
+				if (changed.baseURL) {
+					this.aiManager.setBaseURL(this.settings.openAIBaseURL);
+				}
+				if (changed.customModelId) {
+					this.aiManager.setCustomModelId(this.settings.customModelId);
 				}
 			}
 			await this.saveData(this.settings);
@@ -120,7 +133,7 @@ export default class SRPlugin extends Plugin {
 			);
 		}
 	}
-	
+
 	async deactivateView(viewType: ViewType) {
 		// Let Obsidian handle view lifecycle
 	}
